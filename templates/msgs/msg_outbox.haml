@@ -1,0 +1,81 @@
+{% extends "msgs/message_box.html" %}
+-load smartmin sms temba compress contacts
+-load i18n humanize
+
+-block search-details
+  .search-details
+
+-block message-list
+  %table.mt-4.object-list.list.lined
+    %tbody
+      -for broadcast in pending_broadcasts
+        %tr.broadcast
+
+          %td.value-phone.field_phone
+            %nobr
+              -with recipient_counts=broadcast.get_recipients_counts
+                -if recipient_counts.recipients > 0
+                  -blocktrans count counter=recipient_counts.recipients
+                    1 recipient
+                    - plural
+                      {{counter}} recipients
+                -else
+                  -blocktrans trimmed
+                    {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
+
+          %td.value-text.field_text.wrapped
+            {{ broadcast.get_default_text }}
+            -trans "(sending)"
+
+          %td.created_on
+            %span.time
+              {% short_datetime broadcast.created_on %}
+
+      -for object in object_list
+        %tr
+          %td.whitespace-no-wrap
+            .px-6.py-3
+              .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                {{ object.contact|short_name:user_org }}
+          %td.w-full
+            {% get_value object 'text' %}
+
+            - if 'label' in actions
+              .value-labels
+                - for label in object.labels.all
+                  %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                    %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
+                      {{label.name}}
+
+            -if object.attachments
+              .value-attachments{ style:"margin-top: 5px" }
+                - for attachment in object.attachments
+                  {% attachment_button attachment %}
+
+          %td.created_on
+            %span.time
+              {% short_datetime object.created_on %}
+
+            .log-icon
+              -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
+                {% channel_log_link object %}
+
+      -if not object_list and not pending_broadcasts
+        %tr.empty_list
+          %td{ colspan:'99' }
+            -trans "No matching messages."
+
+  -block paginator
+    -if object_list.count
+      .paginator
+        -include "smartmin/sidebar_pagination.haml"
+
+-block extra-style
+  {{ block.super }}
+
+
+  :css
+    .table.list-table tr.broadcast:hover td, .table.list-table tr.broadcast td {
+      color: #aaa
+    }
+
